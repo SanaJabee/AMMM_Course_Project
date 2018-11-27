@@ -6,11 +6,14 @@
  int nServices = ...;
  int nBuses = ...;
  int nDrivers = ...;
- 
+
  range S = 1..nServices;
  range B = 1..nBuses;
  range D = 1..nDrivers;
  
+ // ********************************
+ //           INPUT DATA
+ // ********************************
  // data about services
  int start[s in S] = ...; // minutes after 0:00 (i.e. 510 is 8:30am)
  int minutes[s in S] = ...;
@@ -43,6 +46,7 @@
  // Mandatory variables. However, feel free to use more if appropriate.
  dvar boolean ds[d in D][s in S]; // whether driver d is assigned to service s
  dvar boolean bs[b in B][s in S]; // whether bus b is assigned to service s
+ 
 // execute {
 // for (var s1 in S)
 // 	for (var s2 in S) 
@@ -54,16 +58,17 @@
  minimize sum(s in S, b in B) bs[b][s]*costKm[b]+sum(s in S, b in B) bs[b][s]*costMinute[b]; // This should be changed!!!!!
  
  subject to {
-	 
-		//Capacity of the buses should not exceed
-	 	forall (s in S)
-	 	  	sum (b in B) bs[b][s]* capacity[b] <= passengers[s];
-	 	//   	
-
+	 	
+	 	// Capacity of the bus and services
+	 	forall (b in B)
+	 	  	sum(s in S) bs[b][s]*passengers[s] <= capacity[b];
 	 	  	
+	    // the Duration and maxDriver minutes
+		forall(d in D)
+	   	   sum(s in S) ds[d][s]*minutes[s] <= maxDrivingMinutes[d];
 }  	
 
-// Do not modify this postprocessing block 
+
  execute {
  	for (var s in S) {
  		var countBuses = 0;
