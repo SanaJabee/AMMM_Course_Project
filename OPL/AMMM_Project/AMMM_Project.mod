@@ -42,11 +42,11 @@
  // ********************************
  //        DECISION VARIABLES
  // ********************************
- 
- // Mandatory variables. However, feel free to use more if appropriate.
+
  dvar boolean ds[d in D][s in S]; // whether driver d is assigned to service s
  dvar boolean bs[b in B][s in S]; // whether bus b is assigned to service s
- 
+ dvar boolean dbase[d in D]; //duration of driver’s work for the first BM minutes or less.
+ dvar boolean dextra[d in D]; //duration of extra driver’s work if dbased is greater than BM
 // execute {
 // for (var s1 in S)
 // 	for (var s2 in S) 
@@ -54,18 +54,38 @@
 // 			overlapping[s1][s2] = 1; 
 // 	}	
 //}	
-
- minimize sum(s in S, b in B) bs[b][s]*costKm[b]+sum(s in S, b in B) bs[b][s]*costMinute[b]; // This should be changed!!!!!
  
+ // ********************************
+ //        OBJECTIVE FUNCTION
+ // ********************************
+ 
+ minimize sum(s in S, b in B) bs[b][s]*kms[s]*costKm[b]+
+ 		  sum(s in S, b in B) bs[b][s]*minutes[s]*costMinute[b]+
+ 		  sum(d in D) dbase[d]*costBaseMinute+
+ 		  sum(d in D) dextra[d]*costExtraMinute;
+ 
+  
+ // ********************************
+ //        CONSTRAINTS
+ // ********************************
  subject to {
-	 	
-	 	// Capacity of the bus and services
+	 	//A bus take part in 0 or more services
+	 	forall(b in B)
+	 	  sum(s in S)
+	 	    bs[b][s]>=0;
+	 	    
+	 	//A driver take part in 0 or more services
+	 	forall(d in D)
+	 	  sum(s in S)
+	 	    ds[d][s]>=0;
+	 	    
+	 	//A driver cannot work more than maxDuration
+	 	//A driver cannot work simulteneusly in two services
+	 	// A bus cannot operate two services simulteneusly.
+	 	// Capacity of the bus and services.
 	 	forall (b in B)
 	 	  	sum(s in S) bs[b][s]*passengers[s] <= capacity[b];
 	 	  	
-	    // the Duration and maxDriver minutes
-		forall(d in D)
-	   	   sum(s in S) ds[d][s]*minutes[s] <= maxDrivingMinutes[d];
 }  	
 
 
