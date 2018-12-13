@@ -45,8 +45,10 @@
 
  dvar boolean ds[d in D][s in S]; // whether driver d is assigned to service s
  dvar boolean bs[b in B][s in S]; // whether bus b is assigned to service s
- dvar boolean dbase[d in D]; //duration of driver’s work for the first BM minutes or less.
- dvar boolean dextra[d in D]; //duration of extra driver’s work if dbased is greater than BM
+ dvar int+ dbase[d in D]; //duration of driverï¿½s work for the first BM minutes or less.
+ dvar int+ dextra[d in D]; //duration of extra driverï¿½s work if dbased is greater than BM
+ dvar int bus[b in B]; //true iff bus b is working in a service
+ dvar float z;
 // execute {
 // for (var s1 in S)
 // 	for (var s2 in S) 
@@ -56,35 +58,90 @@
 //}	
  
  // ********************************
+ //        PRE PROCESSING
+ // ********************************
+ //int compb[b in B][s in S];
+ int overlap[s1 in S][s2 in S];
+ //boolean decisionBus[b in B];
+ 
+ execute {
+ //	 for (var b=1;b<=nBuses;b++)
+//		for(var s=1;s<=nServices;s++)
+//			if(capacity[b] >= passengers[s])
+//				compb[b][s] = 1;
+				
+	 for (var s1=1;s1<=nServices;s1++)
+	 	for(var s2=1;s2<=nServices;s2++)
+	 		if(s1 < s2)
+	 			if((start[s1] < (start[s2] + minutes[s2])) && (start[s2] < (start[s1] + minutes[s1])))
+	 				overlap[s1][s2] = 1;
+ }
+ 
+ // ********************************
  //        OBJECTIVE FUNCTION
  // ********************************
  
- minimize sum(s in S, b in B) bs[b][s]*kms[s]*costKm[b]+
- 		  sum(s in S, b in B) bs[b][s]*minutes[s]*costMinute[b]+
- 		  sum(d in D) dbase[d]*costBaseMinute+
- 		  sum(d in D) dextra[d]*costExtraMinute;
+ minimize z;
+ 		  //sum(d in D) dbase[d]*costBaseMinute+
+ 		  //sum(d in D) dextra[d]*costExtraMinute;
  
   
  // ********************************
  //        CONSTRAINTS
  // ********************************
  subject to {
-	 	//A bus take part in 0 or more services
+
+	 	//A bus can only serve in those services for which it has enough capacity
+	 	forall(b in B, s in S : passengers[s] > capacity[b])
+			bs[b][s] <= 0;
+			
+		//Max buses		
+		
+	 	//All services must be serviced  
+	 	forall(s in S)
+	 		sum(b in B) bs[b][s] == 1;
+	 	
+	 	//Identify buses doing services
 	 	forall(b in B)
-	 	  sum(s in S)
-	 	    bs[b][s]>=0;
+	 	   bus[b]*nServices >= sum(s in S) bs[b][s];
+	 	   
+	 	sum(b in B) bus[b] <= maxBuses;
+		 	
 	 	    
-	 	//A driver take part in 0 or more services
-	 	forall(d in D)
-	 	  sum(s in S)
-	 	    ds[d][s]>=0;
+	 	//All services must be serviced	 	
+	 	forall(s in S) 
+	 		sum(d in D) ds[d][s] == 1;
 	 	    
 	 	//A driver cannot work more than maxDuration
-	 	//A driver cannot work simulteneusly in two services
-	 	// A bus cannot operate two services simulteneusly.
-	 	// Capacity of the bus and services.
-	 	forall (b in B)
-	 	  	sum(s in S) bs[b][s]*passengers[s] <= capacity[b];
+	 	forall(d in D)
+	 	  sum(s in S)
+	 	    ds[d][s] * minutes[s] <= maxDrivingMinutes[d];
+	 	
+	 	//A driver cannot work simultaniously in two services that overlap in time
+	 	forall(d in D, s1, s2 in S : overlap[s1][s2] == 1)
+	 	      	ds[d][s1] + ds[d][s2] <= 1;
+	 	
+	 	// A bus cannot operate two services simultaniously that overlap in time.
+	 	forall(b in B, s1, s2 in S : overlap[s1][s2] == 1)
+	 	      bs[b][s1] + bs[b][s2] <= 1;
+	 	
+	 	
+	 	// Finding the total cost divided in base + extra	 	  
+	 	forall(d in D)
+	 	   	dbase[d] + dextra[d] >= sum(s in S) ds[d][s] * minutes[s];
+	 	  
+	 	forall(d in D)
+			dbase[d] <= baseMinutes;
+	 	  
+	 	//forall(d in D : maxDrivingMinutes[d] <= baseMinutes)
+	 	//  dextra[d] <= 0;
+	 	  
+	 	//forall(d in D)
+	 	  
+	 	z >= sum(s in S, b in B) bs[b][s]*kms[s]*costKm[b]+
+ 		  sum(s in S, b in B) bs[b][s]*minutes[s]*costMinute[b]+
+ 		  sum(d in D) dbase[d]*costBaseMinute+
+ 		  sum(d in D) dextra[d]*costExtraMinute;  	
 	 	  	
 }  	
 
